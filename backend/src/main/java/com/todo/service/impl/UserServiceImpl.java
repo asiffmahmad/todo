@@ -1,0 +1,69 @@
+package com.todo.service.impl;
+
+import com.todo.dto.UserDto;
+import com.todo.dto.UserProfileUpdateRequest;
+import com.todo.entity.User;
+import com.todo.exception.BadRequestException;
+import com.todo.exception.ResourceNotFoundException;
+import com.todo.mapper.UserMapper;
+import com.todo.repository.UserRepository;
+import com.todo.service.UserService;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class UserServiceImpl implements UserService {
+
+    private final UserRepository userRepository;
+    private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder;
+
+    public UserServiceImpl(UserRepository userRepository, UserMapper userMapper, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.userMapper = userMapper;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserDto getProfile(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+        return userMapper.toDto(user);
+    }
+
+    @Override
+    @Transactional
+    public UserDto updateProfile(Long userId, UserProfileUpdateRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        // Check duplicate email
+        if (!user.getEmail().equalsIgnoreCase(request.email())) {
+            userRepository.findByEmail(request.email()).ifPresent(u -> {
+                throw new BadRequestException("Email is already in use");
+            });
+            user.setEmail(request.email());
+        }
+
+        // Check duplicate username
+        if (!user.getUsername().equalsIgnoreCase(request.username())) {
+            userRepository.findByUsername(request.username()).ifPresent(u -> {
+                throw new BadRequestException("Username is already taken");
+            });
+            user.setUsername(request.username());
+        }
+
+        // Optional password update
+        if (request.password() != null && !request.password().trim().isEmpty()) {
+            if (request.password().length() < 6) {
+                throw new BadRequestException("Password must be at least 6 characters long");
+            }
+            user.setPassword(passwordEncoder.encode(request.password()));
+        }
+
+        User updatedUser = userRepository.save(user);
+        return userMapper.toDto(updatedUser);
+    }
+}

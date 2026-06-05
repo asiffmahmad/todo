@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: todo-app
+    env: docker
+    dockerfilePath: Dockerfile
+    buildCommand: ""
+    startCommand: "docker run -p 8080:8080 asiffmahmad/todomain:latest"
+    healthCheckPath: "/actuator/health"
+    envVars:
+      - key: SPRING_DATASOURCE_URL
+        value: jdbc:h2:file:/app/data/tododb
+    autoDeploy: true
