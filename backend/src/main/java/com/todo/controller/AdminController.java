@@ -30,6 +30,7 @@ public class AdminController {
     
     @GetMapping("/users")
     public ResponseEntity<List<com.todo.dto.UserActivityDto>> getAllUsers() {
+        System.out.println("test ai reviewer");
         return ResponseEntity.ok(userService.getAllUsersWithActivities());
     }
 
