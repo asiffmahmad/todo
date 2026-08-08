@@ -8,6 +8,19 @@
       ]
     }
   ],
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "my-vision-board-app.vercel.app"
+        }
+      ],
+      "destination": "https://my-vision-board.asiff.dev/$1",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/ads.txt",

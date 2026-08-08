@@ -24,7 +24,9 @@ const SEO = ({
   type = 'website',
   noIndex = false,
 }) => {
-  const canonicalUrl = `${BASE_URL}${path}`;
+  const sanitizedBaseUrl = BASE_URL ? BASE_URL.replace(/\/$/, '') : '';
+  const sanitizedPath = path.startsWith('/') ? path : `/${path}`;
+  const canonicalUrl = `${sanitizedBaseUrl}${sanitizedPath}`;
 
   const structuredData = {
     '@context': 'https://schema.org',
