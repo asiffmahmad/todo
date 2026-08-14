@@ -1,223 +1,252 @@
 import React, { useEffect, useState } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
-import { Box, Typography, Button, Grid, Card, CardContent, CircularProgress, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Select, InputLabel, FormControl } from '@mui/material'
-import AddIcon from '@mui/icons-material/Add'
-import DeleteIcon from '@mui/icons-material/Delete'
-import VisibilityIcon from '@mui/icons-material/Visibility'
+import { 
+  Box, Typography, IconButton, 
+  List, ListItem, ListItemText, ListItemButton, Divider,
+  useTheme, useMediaQuery, InputBase, Button
+} from '@mui/material'
+import CreateIcon from '@mui/icons-material/Create'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
+import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew'
 import { fetchEntries, addEntry, deleteEntry, updateEntry } from '../features/journalSlice'
-import BookIcon from '@mui/icons-material/Book'
-import EditIcon from '@mui/icons-material/Edit'
 
 const Journal = () => {
   const dispatch = useDispatch()
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const isDark = theme.palette.mode === 'dark'
+  
   const { entries, loading } = useSelector((state) => state.journal)
 
-  const [open, setOpen] = useState(false)
-  const [viewOpen, setViewOpen] = useState(false)
   const [selectedEntry, setSelectedEntry] = useState(null)
-  const [isEditing, setIsEditing] = useState(false)
-  const [editId, setEditId] = useState(null)
-
+  
+  // Form State
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
-  const [entryType, setEntryType] = useState('DAILY_LOG')
-  const [mood, setMood] = useState('')
+  
+  // Mobile view state (false = show list, true = show editor)
+  const [showMobileEditor, setShowMobileEditor] = useState(false)
+
+  // iOS Notes Accent Color
+  const accentColor = '#d4a017'
 
   useEffect(() => {
     dispatch(fetchEntries())
   }, [dispatch])
 
-  const handleOpen = (entry = null) => {
-    if (entry && entry.id) {
-      setIsEditing(true)
-      setEditId(entry.id)
-      setTitle(entry.title)
-      setContent(entry.content)
-      setEntryType(entry.entryType)
-      setMood(entry.mood || '')
+  useEffect(() => {
+    if (selectedEntry) {
+      setTitle(selectedEntry.title || '')
+      setContent(selectedEntry.content || '')
+      if (isMobile) setShowMobileEditor(true)
     } else {
-      setIsEditing(false)
-      setEditId(null)
       setTitle('')
       setContent('')
-      setEntryType('DAILY_LOG')
-      setMood('')
     }
-    setOpen(true)
-  }
-  const handleClose = () => {
-    setOpen(false)
-    setIsEditing(false)
-    setEditId(null)
+  }, [selectedEntry, isMobile])
+
+  const handleNewEntry = () => {
+    setSelectedEntry(null)
     setTitle('')
     setContent('')
-    setEntryType('DAILY_LOG')
-    setMood('')
+    setShowMobileEditor(true)
   }
 
-  const handleViewOpen = (entry) => {
-    setSelectedEntry(entry)
-    setViewOpen(true)
-  }
-  const handleViewClose = () => {
-    setSelectedEntry(null)
-    setViewOpen(false)
-  }
+  const handleSave = () => {
+    if (!title.trim() && !content.trim()) return;
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    if (isEditing) {
-      dispatch(updateEntry({ id: editId, data: { title, content, entryType, mood } }))
+    if (selectedEntry) {
+      dispatch(updateEntry({ id: selectedEntry.id, data: { title, content, entryType: selectedEntry.entryType || 'DAILY_LOG', mood: selectedEntry.mood || '' } }))
     } else {
-      dispatch(addEntry({ title, content, entryType, mood }))
+      // Create new
+      dispatch(addEntry({ title, content, entryType: 'DAILY_LOG', mood: '' }))
     }
-    handleClose()
   }
 
-  const handleDelete = (id) => {
+  const handleDelete = (id, e) => {
+    if (e) e.stopPropagation()
     dispatch(deleteEntry(id))
+    if (selectedEntry && selectedEntry.id === id) {
+      setSelectedEntry(null)
+      setShowMobileEditor(false)
+    }
   }
+
+  const handleBackToList = () => {
+    setShowMobileEditor(false)
+    setSelectedEntry(null) // optionally deselect when going back
+  }
+
+  // Common font family for iOS feel
+  const iosFont = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
+
+  // Dynamic Colors based on theme mode
+  const sidebarBg = isDark ? '#1c1c1e' : '#f2f2f7'
+  const editorBg = isDark ? '#000000' : '#ffffff'
+  const borderColor = isDark ? '#38383a' : '#c6c6c8'
+  const textColor = isDark ? '#ffffff' : '#000000'
+  const secondaryTextColor = isDark ? '#98989d' : '#8e8e93'
+  const selectedItemBg = isDark ? '#2c2c2e' : '#e5e5ea'
+  const selectedItemHover = isDark ? '#3a3a3c' : '#d1d1d6'
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 800, mb: 0.5 }}>
-            My Journal
+    <Box sx={{ 
+      display: 'flex', 
+      height: { xs: 'calc(100vh - 80px)', md: 'calc(100vh - 120px)' }, 
+      bgcolor: editorBg, 
+      borderRadius: { xs: 0, md: 3 }, 
+      overflow: 'hidden',
+      boxShadow: { xs: 'none', md: '0 10px 30px rgba(0,0,0,0.05)' },
+      border: { xs: 'none', md: `1px solid ${borderColor}` },
+      fontFamily: iosFont
+    }}>
+      
+      {/* LEFT SIDEBAR: List of Entries */}
+      <Box sx={{ 
+        width: { xs: '100%', md: 320 }, 
+        display: (!isMobile || !showMobileEditor) ? 'flex' : 'none', 
+        flexDirection: 'column', 
+        bgcolor: sidebarBg,
+        borderRight: { xs: 'none', md: `1px solid ${borderColor}` }
+      }}>
+        <Box sx={{ p: 2, pt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, fontFamily: iosFont, letterSpacing: '-0.5px', color: textColor }}>
+            Notes
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Reflect, write, and track your daily thoughts
-          </Typography>
+          <IconButton onClick={handleNewEntry} sx={{ color: accentColor }}>
+            <CreateIcon />
+          </IconButton>
         </Box>
-        <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => handleOpen()}>
-          Write Entry
-        </Button>
+        
+        {loading && !entries.length ? (
+          <Box p={4} textAlign="center" color={secondaryTextColor}>Loading...</Box>
+        ) : entries.length === 0 ? (
+          <Box sx={{ p: 4, textAlign: 'center', color: secondaryTextColor }}>
+            <Typography variant="body1" fontFamily={iosFont}>No Notes</Typography>
+          </Box>
+        ) : (
+          <List sx={{ flex: 1, overflowY: 'auto', p: 0 }}>
+            {entries.map(entry => (
+              <React.Fragment key={entry.id}>
+                <ListItem disablePadding>
+                  <ListItemButton 
+                    selected={selectedEntry?.id === entry.id}
+                    onClick={() => {
+                      setSelectedEntry(entry)
+                      if (isMobile) setShowMobileEditor(true)
+                    }}
+                    sx={{ 
+                      py: 1.5, px: 3,
+                      bgcolor: selectedEntry?.id === entry.id ? selectedItemBg : 'transparent',
+                      '&.Mui-selected': { bgcolor: selectedItemBg },
+                      '&.Mui-selected:hover': { bgcolor: selectedItemHover },
+                    }}
+                  >
+                    <ListItemText 
+                      primary={entry.title || 'New Note'} 
+                      primaryTypographyProps={{ 
+                        fontWeight: 600, 
+                        noWrap: true,
+                        fontFamily: iosFont,
+                        color: textColor
+                      }}
+                      secondary={
+                         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 0.5 }}>
+                           <Typography variant="caption" sx={{ color: secondaryTextColor, fontWeight: 500, fontFamily: iosFont }}>
+                             {new Date(entry.createdAt).toLocaleDateString()}
+                           </Typography>
+                           <Typography variant="caption" sx={{ color: secondaryTextColor, noWrap: true, overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, fontFamily: iosFont }}>
+                             {entry.content ? entry.content.substring(0, 30) : 'No additional text'}
+                           </Typography>
+                         </Box>
+                      }
+                    />
+                  </ListItemButton>
+                </ListItem>
+                <Divider sx={{ ml: 3, borderColor: borderColor }} />
+              </React.Fragment>
+            ))}
+          </List>
+        )}
       </Box>
 
-      {loading ? (
-        <Box display="flex" justifyContent="center" mt={4}><CircularProgress /></Box>
-      ) : entries.length === 0 ? (
-        <Card sx={{ py: 8, textAlign: 'center' }}>
-          <CardContent>
-            <BookIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
-            <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>No entries found</Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>Start writing your first journal entry.</Typography>
-          </CardContent>
-        </Card>
-      ) : (
-        <Grid container spacing={3}>
-          {entries.map((entry) => (
-            <Grid item xs={12} key={entry.id}>
-              <Card sx={{ position: 'relative' }}>
-                <CardContent sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
-                    <Typography variant="h6" fontWeight={700} sx={{ pr: 14, wordBreak: 'break-word' }}>{entry.title}</Typography>
-                    <Box sx={{ display: 'flex', gap: 0.5, position: 'absolute', top: 16, right: 16 }}>
-                      <IconButton size="small" color="primary" onClick={() => handleViewOpen(entry)}>
-                        <VisibilityIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton size="small" color="info" onClick={() => handleOpen(entry)}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton size="small" color="error" onClick={() => handleDelete(entry.id)}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-                  </Box>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', mb: 2 }}>
-                    <Typography variant="caption" sx={{ bgcolor: 'action.selected', color: 'text.secondary', px: 1.5, py: 0.5, borderRadius: 1.5, border: '1px solid', borderColor: 'divider', fontWeight: 600 }}>
-                      {entry.entryType}
-                    </Typography>
-                    {entry.mood && (
-                      <Typography variant="caption" sx={{ bgcolor: 'action.selected', color: 'text.secondary', px: 1.5, py: 0.5, borderRadius: 1.5, border: '1px solid', borderColor: 'divider', fontWeight: 600 }}>
-                        Mood: {entry.mood}
-                      </Typography>
-                    )}
-                    <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
-                      {new Date(entry.createdAt).toLocaleDateString()}
-                    </Typography>
-                  </Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 2, height: 48, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                    {entry.content}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      )}
-
-      {/* Create Journal Modal */}
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>{isEditing ? 'Edit Journal Entry' : 'Write New Journal Entry'}</DialogTitle>
-        <form onSubmit={handleSubmit}>
-          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField label="Title" variant="outlined" fullWidth required value={title} onChange={(e) => setTitle(e.target.value)} />
-            <TextField label="Content" variant="outlined" multiline rows={5} fullWidth required value={content} onChange={(e) => setContent(e.target.value)} />
-            <FormControl fullWidth required>
-              <InputLabel>Entry Type</InputLabel>
-              <Select value={entryType} label="Entry Type" onChange={(e) => setEntryType(e.target.value)}>
-                <MenuItem value="DAILY_LOG">Daily Log</MenuItem>
-                <MenuItem value="REFLECTION">Reflection</MenuItem>
-                <MenuItem value="GRATITUDE">Gratitude</MenuItem>
-                <MenuItem value="IDEA">Idea</MenuItem>
-                <MenuItem value="LESSON_LEARNED">Lesson Learned</MenuItem>
-                <MenuItem value="GENERAL_NOTE">General Note</MenuItem>
-              </Select>
-            </FormControl>
-            <TextField label="Mood" variant="outlined" fullWidth value={mood} onChange={(e) => setMood(e.target.value)} />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleClose}>Cancel</Button>
-            <Button type="submit" variant="contained" color="primary">{isEditing ? 'Update' : 'Save'}</Button>
-          </DialogActions>
-        </form>
-      </Dialog>
-
-      {/* View Journal Modal */}
-      <Dialog open={viewOpen} onClose={handleViewClose} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800 }}>Journal Entry Details</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-          {selectedEntry && (
-            <>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box sx={{ pr: 2 }}>
-                  <Typography variant="subtitle2" color="text.secondary">Title</Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600, wordBreak: 'break-word' }}>{selectedEntry.title}</Typography>
-                </Box>
-                <Typography variant="caption" color="text.secondary">
-                  {new Date(selectedEntry.createdAt).toLocaleString()}
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', gap: { xs: 2, sm: 4 }, flexWrap: 'wrap', alignItems: 'center' }}>
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">Entry Type</Typography>
-                  <Typography variant="body2" sx={{ bgcolor: 'action.selected', color: 'text.secondary', px: 1.5, py: 0.5, borderRadius: 1.5, border: '1px solid', borderColor: 'divider', display: 'inline-block', mt: 0.5, fontWeight: 600 }}>
-                    {selectedEntry.entryType}
-                  </Typography>
-                </Box>
-                {selectedEntry.mood && (
-                  <Box>
-                    <Typography variant="subtitle2" color="text.secondary">Mood</Typography>
-                    <Typography variant="body2" sx={{ bgcolor: 'action.selected', color: 'text.secondary', px: 1.5, py: 0.5, borderRadius: 1.5, border: '1px solid', borderColor: 'divider', display: 'inline-block', mt: 0.5, fontWeight: 600 }}>
-                      {selectedEntry.mood}
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" color="text.secondary">Content</Typography>
-                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', bgcolor: 'action.hover', p: 2, borderRadius: 2, border: (theme) => `1px solid ${theme.palette.divider}` }}>
-                  {selectedEntry.content}
-                </Typography>
-              </Box>
-            </>
+      {/* RIGHT MAIN: The Editor */}
+      <Box sx={{ 
+        flex: 1, 
+        display: (!isMobile || showMobileEditor) ? 'flex' : 'none', 
+        flexDirection: 'column', 
+        bgcolor: editorBg
+      }}>
+        
+        {/* Editor Toolbar */}
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          p: 2, 
+          borderBottom: `1px solid ${sidebarBg}`
+        }}>
+          {isMobile ? (
+             <Button sx={{ color: accentColor, textTransform: 'none', fontSize: '1.1rem', fontFamily: iosFont }} startIcon={<ArrowBackIosNewIcon />} onClick={handleBackToList}>
+               Notes
+             </Button>
+          ) : (
+            <Box /> // Spacer
           )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleViewClose} variant="contained">Close</Button>
-        </DialogActions>
-      </Dialog>
+          
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {selectedEntry && (
+              <IconButton onClick={(e) => handleDelete(selectedEntry.id, e)} sx={{ color: accentColor }}>
+                <DeleteOutlineIcon />
+              </IconButton>
+            )}
+            <IconButton onClick={handleSave} sx={{ color: accentColor }}>
+              <CheckCircleOutlineIcon />
+            </IconButton>
+          </Box>
+        </Box>
+
+        {/* Editor Body */}
+        <Box sx={{ p: { xs: 3, md: 5 }, display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto' }}>
+          {selectedEntry && (
+             <Typography variant="caption" sx={{ color: secondaryTextColor, textAlign: 'center', mb: 4, fontFamily: iosFont, fontWeight: 500 }}>
+               {new Date(selectedEntry.createdAt).toLocaleString(undefined, { dateStyle: 'long', timeStyle: 'short' })}
+             </Typography>
+          )}
+
+          <InputBase
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Title"
+            sx={{
+              fontSize: '2rem',
+              fontWeight: 700,
+              fontFamily: iosFont,
+              color: textColor,
+              mb: 2,
+              '& input': { p: 0 }
+            }}
+          />
+
+          <InputBase
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Start typing..."
+            multiline
+            sx={{
+              flex: 1,
+              alignItems: 'flex-start',
+              fontSize: '1.1rem',
+              lineHeight: 1.5,
+              fontFamily: iosFont,
+              color: textColor,
+              '& textarea': { p: 0, height: '100% !important' }
+            }}
+          />
+        </Box>
+      </Box>
+
     </Box>
   )
 }
