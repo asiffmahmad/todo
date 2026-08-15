@@ -24,10 +24,21 @@ public class DataMigrationService {
     @Autowired
     private JournalEntryRepository journalEntryRepository;
 
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
     @PostConstruct
     public void migrateNotesToJournal() {
         logger.info("Starting data migration: Notes to JournalEntries");
         try {
+            // Ensure the column is wide enough to avoid Data Truncation errors on older schemas
+            try {
+                jdbcTemplate.execute("ALTER TABLE journal_entries MODIFY COLUMN entry_type VARCHAR(255)");
+                logger.info("Successfully altered entry_type column");
+            } catch (Exception e) {
+                logger.warn("Could not alter entry_type column (may already be correct type or unsupported DB): " + e.getMessage());
+            }
+
             List<Note> allNotes = noteRepository.findAll();
             if (allNotes.isEmpty()) {
                 logger.info("No notes found to migrate.");
