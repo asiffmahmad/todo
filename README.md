@@ -4,6 +4,8 @@ A production-ready task management application built using a Spring Boot backend
 
 ---
 
+
+
 ## Features
 
 - **Authentication**: JWT-based session security with stateless Access Tokens and database-backed rotating Refresh Tokens.
