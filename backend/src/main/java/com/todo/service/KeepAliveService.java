@@ -14,8 +14,8 @@ public class KeepAliveService {
     private static final Logger logger = LoggerFactory.getLogger(KeepAliveService.class);
     private static final String APP_URL = "https://todo-backend-bggj.onrender.com/api/health";
 
-    // 3 minutes = 180000 milliseconds
-    @Scheduled(fixedRate = 180000)
+    
+    @Scheduled(fixedRateString = "PT5H")
     public void pingServer() {
         try {
             URL url = new URL(APP_URL);
